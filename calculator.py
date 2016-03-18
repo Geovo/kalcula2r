@@ -39,6 +39,8 @@ class CalculatorWindow(Gtk.Window):
 
         # setup buttons
         self.setup_commands()
+        # enable keyboard events
+        self.connect("key-press-event", self.key_pressed)
 
 
     def set_proper_size(self):
@@ -49,9 +51,7 @@ class CalculatorWindow(Gtk.Window):
         self.set_size_request(self.own_width, self.own_height)
 
     def first_layer(self):
-        print("hello")
         self.grid_upper = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        #print(dir(self.grid_upper))
         self.grid_upper.set_size_request(self.own_width, self.own_height * 0.15)
         self.add(self.grid_upper)
         demo_label = Gtk.Label("Placeholder for inputs")
@@ -61,7 +61,6 @@ class CalculatorWindow(Gtk.Window):
         self.grid_upper.add(demo_label)
 
     def second_layer(self):
-        print("second")
         self.results.set_size_request(self.own_width, round(self.own_height * 0.25))
         self.results_label.set_size_request(self.own_width - 20, round(self.own_height * 0.25))
         self.results_label.set_justify(Gtk.Justification.RIGHT)
@@ -69,7 +68,7 @@ class CalculatorWindow(Gtk.Window):
         self.results.add(self.results_label)
         self.grid_upper.add(self.results)
 
-        print(self.results_label.get_style().font_desc.get_size())
+        #print(self.results_label.get_style().font_desc.get_size())
 
     def setup_commands(self):
         self.commands.set_size_request(self.own_width, round(self.own_height * 0.6))
@@ -77,8 +76,9 @@ class CalculatorWindow(Gtk.Window):
         left_box.set_size_request(round(self.own_width * 0.6), round(self.own_height * 0.6))
 
 
-        nums = [str(x) for x in range(10)]
-        nums.reverse()
+        #nums = [str(x) for x in range(10)]
+        nums = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "0"]
+        #nums.reverse()
         nums.append("+/-")
         nums.append("%")
         # temporary size vars
@@ -133,7 +133,7 @@ class CalculatorWindow(Gtk.Window):
 
         # now add the right box
         right_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        nu_ops = ["C", "AC", "Eco mode", "="]
+        nu_ops = [".", "AC", "Eco mode", "="]
 
         for op in nu_ops:
             button = Gtk.Button(label=op)
@@ -144,7 +144,6 @@ class CalculatorWindow(Gtk.Window):
         self.commands.add(right_box)
 
     def button_click(self, widget):
-        print(widget.get_label())
         label = widget.get_label()
 
         if label == "=":
@@ -178,7 +177,6 @@ class CalculatorWindow(Gtk.Window):
                 else:
                     # the op has lower precedence
                     # push last found number to stack
-                    print("sent solve_stack")
                     self.stack.append(self.current)
                     self.solve_stack()
                     # append label to stack afterwards
@@ -192,15 +190,15 @@ class CalculatorWindow(Gtk.Window):
                 self.edit_current = True
                 self.current = ""
             self.current += label
-        elif label == "C":
-            self.current = ""
+        elif label == ".":
+            self.current += "."
         elif label == "AC":
             self.current = ""
             self.stack = []
             self.op_stack = []
             self.last_op = ""
 
-        print(self.stack)
+        #print(self.stack)
         #print(self.op_stack)
         if self.current != "":
             self.results_label.set_markup("<span font='35'>%s</span>" % self.current)
@@ -208,7 +206,7 @@ class CalculatorWindow(Gtk.Window):
             self.results_label.set_markup("<span font='35'>0</span>")
 
     def operate(self, a, b, op):
-        print(a + " " + op + b)
+        #print(a + " " + op + b)
         a = float(a)
         b = float(b)
         if op == "X":
@@ -234,10 +232,7 @@ class CalculatorWindow(Gtk.Window):
             return 0
 
     def solve_stack(self):
-        print("solving stack!!!")
         rpn = self.transform_rpn()
-        #return
-        #rpn = ["5", "4", "+"]
 
         i = 0
         while len(rpn) > 1:
@@ -245,21 +240,16 @@ class CalculatorWindow(Gtk.Window):
                 # n is an op
                 a = rpn.pop(i-1)
                 i -= 1
-                print("got a: " + a)
                 b = rpn.pop(i-1)
                 i -= 1
-                print("got b: " + b)
                 op = rpn.pop(i)
-                print("got op: " + op)
 
-                print("a: " + a + " " + op + " " + b)
                 res = self.operate(b,a,op)
                 # make sure you add ints if they don't need the .0
                 if res == round(res):
                     res = int(res)
                 rpn.insert(i,str(res))
             i += 1
-            print(rpn)
             self.stack = [rpn[0]]
             self.current = rpn[0]
 
@@ -290,12 +280,54 @@ class CalculatorWindow(Gtk.Window):
 
         # pop out the rest of the ops
         while len(ops) > 0:
-            print("popping ops:")
-            print(ops)
             out.append(ops.pop(-1))
-        print("rpn below:")
-        print(out)
         return out
+
+    def key_pressed(self, widget, event):
+        # get the code
+        key = event.keyval
+        res = ""
+        if key >= 48 and key <= 57:
+            # qwerty digits
+            res = str(key - 48)
+            self.current += res
+        elif key >= 65456 and key <= 65465:
+            # numpad digits
+            res = str(key - 65456)
+            self.current += res
+        elif key == 65233 or key == 65421 or key == 65469:
+            # next goes enter or '='
+            res = "="
+        elif key == 46 or key == 65454:
+            # dot operator
+            res = "."
+            self.current += res
+        elif key == 47 or key == 65455:
+            # division
+            res = "/"
+        elif key == 43 or key == 65451:
+            # addition
+            res = "+"
+        elif key == 45 or key == 65453:
+            # subtraction
+            res = "-"
+        elif key == 42 or key == 65450:
+            # multiplication
+            res = "X"
+        elif key == 37:
+            # modulo
+            res = "%"
+        elif key == 65288:
+            # do some backspacing
+            self.current = self.current[:-1]
+        self.update_label()
+
+    def update_label(self):
+        if self.current == "":
+            self.results_label.set_markup("<span font='35'>0</span>")
+        else:
+            self.results_label.set_markup("<span font='35'>" + self.current + "</span>")
+
 
 # basic setup
 win = CalculatorWindow()
