@@ -27,6 +27,8 @@ class CalculatorWindow(Gtk.Window):
         self.last_op = ""
         self.op_stack = []
 
+        self.edit_current = True
+
         self.commands = Gtk.Grid()
         # first, set the proper window size
         self.set_proper_size()
@@ -145,10 +147,31 @@ class CalculatorWindow(Gtk.Window):
         print(widget.get_label())
         label = widget.get_label()
 
-        if self.ops.__contains__(label):
+        if label == "=":
+            if len(self.stack) > 1 and self.current != "":
+                # if current is not empty, parse the equation with it appended
+                # else simply do nothing
+                self.stack.append(self.current)
+                self.current = ""
+                self.solve_stack()
+                self.edit_current = False
+            elif len(self.stack) == 1:
+                print("only one element in stack")
+        elif label == "+/-":
+            # simply swap the sign of current
+            if self.current[0] == "-":
+                self.current = self.current[1:]
+            else:
+                self.current = "-" + self.current
+        elif self.ops.__contains__(label):
+            self.edit_current = False
             if len(self.stack) > 0:
+                # first, make sure that you don't add the same elem twice
+                if len(self.stack) == 1 and self.stack[-1] == self.current:
+                    self.stack.append(label)
+                    self.current = ""
                 # check for precedence
-                if self.precedence(label) >= self.precedence(self.stack[-1]):
+                elif self.precedence(label) >= self.precedence(self.stack[-1]):
                     self.stack.append(self.current)
                     self.stack.append(label)
                     self.current = ""
@@ -165,6 +188,9 @@ class CalculatorWindow(Gtk.Window):
                 self.stack.append(label)
                 self.current = ""
         elif self.nums.__contains__(label):
+            if not self.edit_current:
+                self.edit_current = True
+                self.current = ""
             self.current += label
         elif label == "C":
             self.current = ""
@@ -183,8 +209,8 @@ class CalculatorWindow(Gtk.Window):
 
     def operate(self, a, b, op):
         print(a + " " + op + b)
-        a = int(a)
-        b = int(b)
+        a = float(a)
+        b = float(b)
         if op == "X":
             return a * b
         elif op == "/":
@@ -210,7 +236,7 @@ class CalculatorWindow(Gtk.Window):
     def solve_stack(self):
         print("solving stack!!!")
         rpn = self.transform_rpn()
-        return
+        #return
         #rpn = ["5", "4", "+"]
 
         i = 0
@@ -227,11 +253,15 @@ class CalculatorWindow(Gtk.Window):
                 print("got op: " + op)
 
                 print("a: " + a + " " + op + " " + b)
-                res = self.operate(a,b,op)
-                rpn.insert(i,res)
+                res = self.operate(b,a,op)
+                # make sure you add ints if they don't need the .0
+                if res == round(res):
+                    res = int(res)
+                rpn.insert(i,str(res))
             i += 1
             print(rpn)
             self.stack = [rpn[0]]
+            self.current = rpn[0]
 
 
     def transform_rpn(self):
@@ -239,22 +269,29 @@ class CalculatorWindow(Gtk.Window):
         ops = []
         cp = self.stack
 
-        for n in cp:
+        while len(cp) > 0:
+            n = cp.pop(0)
             if self.ops.__contains__(n):
-                if len(ops) > 0:
-                    if self.precedence(n) <= self.precedence(ops[-1]):
-                        while self.precedence(ops[-1]) > self.precedence(n):
-                            out.append(ops.pop(-1))
-                            if len(ops) == 0:
-                                break
-                else:
+                # is an operator
+                if len(ops) == 0:
                     ops.append(n)
+                elif self.precedence(n) < self.precedence(ops[-1]):
+                    # pop out all elements from ops
+                    while len(ops) > 0:
+                        # this works only if ops has at least one op
+                        out.append(ops.pop(-1))
+                    # in the end append n to ops
+                    ops.append(n)
+                else:
+                    out.append(n)
             else:
-                # must be a number
+                # is a number
                 out.append(n)
 
         # pop out the rest of the ops
         while len(ops) > 0:
+            print("popping ops:")
+            print(ops)
             out.append(ops.pop(-1))
         print("rpn below:")
         print(out)
