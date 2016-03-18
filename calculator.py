@@ -147,15 +147,7 @@ class CalculatorWindow(Gtk.Window):
         label = widget.get_label()
 
         if label == "=":
-            if len(self.stack) > 1 and self.current != "":
-                # if current is not empty, parse the equation with it appended
-                # else simply do nothing
-                self.stack.append(self.current)
-                self.current = ""
-                self.solve_stack()
-                self.edit_current = False
-            elif len(self.stack) == 1:
-                print("only one element in stack")
+            self.equalize()
         elif label == "+/-":
             # simply swap the sign of current
             if self.current[0] == "-":
@@ -163,47 +155,18 @@ class CalculatorWindow(Gtk.Window):
             else:
                 self.current = "-" + self.current
         elif self.ops.__contains__(label):
-            self.edit_current = False
-            if len(self.stack) > 0:
-                # first, make sure that you don't add the same elem twice
-                if len(self.stack) == 1 and self.stack[-1] == self.current:
-                    self.stack.append(label)
-                    self.current = ""
-                # check for precedence
-                elif self.precedence(label) >= self.precedence(self.stack[-1]):
-                    self.stack.append(self.current)
-                    self.stack.append(label)
-                    self.current = ""
-                else:
-                    # the op has lower precedence
-                    # push last found number to stack
-                    self.stack.append(self.current)
-                    self.solve_stack()
-                    # append label to stack afterwards
-                    self.stack.append(label)
-            else:
-                self.stack.append(self.current)
-                self.stack.append(label)
-                self.current = ""
+            self.add_operator(label)
         elif self.nums.__contains__(label):
-            if not self.edit_current:
-                self.edit_current = True
-                self.current = ""
-            self.current += label
+            self.edit_number(label)
         elif label == ".":
-            self.current += "."
+            self.edit_number(".")
         elif label == "AC":
             self.current = ""
             self.stack = []
             self.op_stack = []
             self.last_op = ""
 
-        #print(self.stack)
-        #print(self.op_stack)
-        if self.current != "":
-            self.results_label.set_markup("<span font='35'>%s</span>" % self.current)
-        else:
-            self.results_label.set_markup("<span font='35'>0</span>")
+        self.update_label()
 
     def operate(self, a, b, op):
         #print(a + " " + op + b)
@@ -236,6 +199,7 @@ class CalculatorWindow(Gtk.Window):
 
         i = 0
         while len(rpn) > 1:
+            print(self.stack)
             if self.ops.__contains__(rpn[i]) and rpn[i] != "=" and rpn[i] != "+/-":
                 # n is an op
                 a = rpn.pop(i-1)
@@ -287,21 +251,21 @@ class CalculatorWindow(Gtk.Window):
         # get the code
         key = event.keyval
         res = ""
+        enter = False
         if key >= 48 and key <= 57:
             # qwerty digits
-            res = str(key - 48)
-            self.current += res
+            self.edit_number(str(key - 48))
         elif key >= 65456 and key <= 65465:
             # numpad digits
-            res = str(key - 65456)
-            self.current += res
+            self.edit_number(str(key - 65456))
         elif key == 65233 or key == 65421 or key == 65469:
             # next goes enter or '='
-            res = "="
+            self.current = self.current[:-1]
+            self.equalize()
+            enter = True
         elif key == 46 or key == 65454:
             # dot operator
-            res = "."
-            self.current += res
+            self.edit_number(".")
         elif key == 47 or key == 65455:
             # division
             res = "/"
@@ -320,13 +284,78 @@ class CalculatorWindow(Gtk.Window):
         elif key == 65288:
             # do some backspacing
             self.current = self.current[:-1]
+
+        # if not a number, but an op:
+        if res != "":
+            self.add_operator(res)
         self.update_label()
+
+        if enter:
+            return True
 
     def update_label(self):
         if self.current == "":
             self.results_label.set_markup("<span font='35'>0</span>")
         else:
             self.results_label.set_markup("<span font='35'>" + self.current + "</span>")
+
+    # here go the capsules for our main methods
+    def equalize(self):
+        if len(self.stack) > 0 and self.current != "":
+            # if current is not empty, parse the equation with it appended
+            # else simply do nothing
+            self.stack.append(self.current)
+            self.current = ""
+            self.solve_stack()
+            self.edit_current = False
+        #elif len(self.stack) == 1:
+        #    print("only one element in stack")
+
+    def add_op(self, op):
+        if len(self.stack) > 1:
+            if self.ops.__contains__(self.stack[-1]):
+                # swap the op
+                self.stack[-1] = op
+            else:
+                self.stack.append(op)
+
+    def add_operator(self, label):
+        self.edit_current = False
+        if len(self.stack) > 0:
+            # first, make sure that you don't add the same elem twice
+            if len(self.stack) == 1 and self.stack[-1] == self.current:
+                self.stack.append(label)
+                self.current = ""
+            # check for precedence
+            elif self.precedence(label) >= self.precedence(self.stack[-1]):
+                self.stack.append(self.current)
+                self.stack.append(label)
+                self.current = ""
+            else:
+                # the op has lower precedence
+                # push last found number to stack
+                self.stack.append(self.current)
+                self.solve_stack()
+                # append label to stack afterwards
+                self.stack.append(label)
+        else:
+            self.stack.append(self.current)
+            self.stack.append(label)
+            self.current = ""
+
+    def edit_number(self, label):
+        if len(self.stack) == 1:
+            # make room for new equation
+            self.stack = []
+
+        if not self.edit_current:
+            self.edit_current = True
+            self.current = ""
+
+        if self.current == "" and label == ".":
+            self.current = "0."
+
+        self.current += label
 
 
 # basic setup
