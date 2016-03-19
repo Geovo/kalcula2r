@@ -1,3 +1,4 @@
-Percent | s, perc, years | s + perc ** years
+Percent | beginning, percent, years | beginning * (1 + percent * years)
+Yearly percent | beginning, percent, times | beginning * (1 + percent / times)
 Sum of three | a, b, c | a + b + c
-Amortisation | price, years | price / years  
+Amortisation | price, years | price / years

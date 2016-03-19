@@ -7,13 +7,14 @@ class Function:
         print(self.params)
 
     def run_with_array(self, ary):
-        print("ary")
         out = "("
         for i, a in enumerate(ary):
             out += self.params[i] + "=" + str(a) + ","
         out = out[:-1] + ")"
         #print(out)
-        return eval("self.run" + out)
+        res = eval("self.run" + out)
+        #print(res)
+        return str(res)
 
 
 #f = Function("Percent", lambda s, perc, years: return s * perc ** years, 3)

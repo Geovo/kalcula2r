@@ -45,9 +45,13 @@ class CalculatorWindow(Gtk.Window):
 
         self.edit_current = True
 
+        self.current_function = None
+
         self.commands = Gtk.Grid()
         # create another Grid that will be invisible from the beginning
         self.economical = Gtk.Grid()
+        # upper container
+        self.upper_container = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         # first, set the proper window size
         self.set_proper_size()
         # now, create the first field
@@ -74,11 +78,13 @@ class CalculatorWindow(Gtk.Window):
         self.grid_upper = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         self.grid_upper.set_size_request(self.own_width, self.own_height * 0.15)
         self.add(self.grid_upper)
+        self.grid_upper.add(self.upper_container)
+        self.upper_container.set_border_width(25)
         demo_label = Gtk.Label("Placeholder for inputs")
         demo_label.set_justify(Gtk.Justification.RIGHT)
         # margin left
-        self.grid_upper.add(Gtk.Label("   "))
-        self.grid_upper.add(demo_label)
+        self.upper_container.add(Gtk.Label("   "))
+        self.upper_container.add(demo_label)
 
     def second_layer(self):
         self.results.set_size_request(self.own_width, round(self.own_height * 0.25))
@@ -217,11 +223,11 @@ class CalculatorWindow(Gtk.Window):
 
         # now add the right box
         right_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        nu_ops = [".", "AC", "Normal mode", "="]
+        nu_ops = ["AC", "Normal mode", "="]
 
         for op in nu_ops:
             button = Gtk.Button(label=op)
-            button.connect("clicked", self.button_click)
+            button.connect("clicked", self.eco_op)
             button.set_size_request(w, h)
             right_box.add(button)
 
@@ -257,12 +263,6 @@ class CalculatorWindow(Gtk.Window):
             self.commands.hide()
             self.economical.set_no_show_all(False)
             self.economical.show_all()
-        elif label == "Normal mode":
-            self.cleanup()
-            self.commands.set_no_show_all(False)
-            self.economical.set_no_show_all(True)
-            self.economical.hide()
-            self.commands.show()
 
 
         self.update_label()
@@ -270,7 +270,41 @@ class CalculatorWindow(Gtk.Window):
     def function_click(self, widget):
         function = widget.get_label()
         print("calling " + function)
+        for func in functions:
+            if func.name == function:
+                self.current_function = func
+                break
+        if self.current_function != None:
+            print(self.current_function)
+            self.cleanup_upper()
+            for param in self.current_function.params:
+                entry = Gtk.Entry()
+                entry.set_placeholder_text(param.capitalize())
+                self.upper_container.add(entry)
+                print(self.upper_container.get_children())
+                self.upper_container.show_all()
 
+    def eco_op(self, widget):
+        label = widget.get_label()
+        if label == "Normal mode":
+            self.cleanup()
+            self.cleanup_upper()
+            self.commands.set_no_show_all(False)
+            self.economical.set_no_show_all(True)
+            self.economical.hide()
+            self.commands.show()
+        elif label == "=":
+            #self.cleanup_upper()
+            vals = self.upper_container.get_children()
+            out = []
+            for v in vals:
+                out.append(v.get_text())
+            self.current = self.current_function.run_with_array(out)
+            self.update_label()
+
+    def cleanup_upper(self):
+        for elem in self.upper_container.get_children():
+            self.upper_container.remove(elem)
 
     def cleanup(self):
         self.current = ""
@@ -358,6 +392,8 @@ class CalculatorWindow(Gtk.Window):
         return out
 
     def key_pressed(self, widget, event):
+        if not self.commands.get_visible():
+            return
         # get the code
         key = event.keyval
         res = ""
