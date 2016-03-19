@@ -6,12 +6,28 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
+import functions
+from functions import *
+
+# setup the functions before the window
+fp = FunctionParser()
+func_file = open("functions.txt", "r")
+functions = []
+
+for line in func_file:
+    functions.append(fp.parse(line))
+
+# close func_file
+func_file.close()
+
 class CalculatorWindow(Gtk.Window):
 
     def __init__(self):
         Gtk.Window.__init__(self, title="k2 calculator")
         self.own_width = 0
         self.own_height = 0
+
+        self.functions = functions
 
         self.stack = []
         self.current = ""
@@ -30,6 +46,8 @@ class CalculatorWindow(Gtk.Window):
         self.edit_current = True
 
         self.commands = Gtk.Grid()
+        # create another Grid that will be invisible from the beginning
+        self.economical = Gtk.Grid()
         # first, set the proper window size
         self.set_proper_size()
         # now, create the first field
@@ -39,6 +57,8 @@ class CalculatorWindow(Gtk.Window):
 
         # setup buttons
         self.setup_commands()
+        # setup economical mode
+        self.setup_economical()
         # enable keyboard events
         self.connect("key-press-event", self.key_pressed)
 
@@ -143,6 +163,73 @@ class CalculatorWindow(Gtk.Window):
 
         self.commands.add(right_box)
 
+    def setup_economical(self):
+        self.economical.set_size_request(self.own_width, round(self.own_height * 0.6))
+        left_box = Gtk.Grid()
+        left_box.set_size_request(round(self.own_width * 0.6), round(self.own_height * 0.6))
+
+        #nums = [str(x) for x in range(10)]
+        #functions = ["Percent", "another", "yet another"]
+        #nums.reverse()
+        #nums.append("+/-")
+        #nums.append("%")
+        # temporary size vars
+        h = round(self.own_height * 0.6 / 4)
+        w = round(self.own_width / 5)
+
+        #print(nums)
+        self.grid_upper.add(self.economical)
+        self.economical.set_no_show_all(True)
+        #self.economical.unmap()
+
+        c = 0
+        first_in_row = 0
+        prev = False
+        virgin = True
+
+        for n in self.functions:
+        #    print("c is %d" % c)
+        #    print(first_in_row)
+            button = Gtk.Button(label=n.name)
+            button.connect("clicked", self.function_click)
+            button.set_size_request(w, h)
+            #button.set_visible(False)
+            if c == 0 and virgin:
+                first_in_row = button
+                virgin = False
+
+            if c == 4:
+                left_box.attach_next_to(button, first_in_row, Gtk.PositionType.BOTTOM, 1, 1)
+                first_in_row = button
+                c = 0
+            else:
+                if not prev:
+                    #self.commands.add(button)
+                    left_box.add(button)
+                else:
+                    #self.commands.attach_next_to(button, prev, Gtk.PositionType.RIGHT, 1, 1)
+                    left_box.attach_next_to(button, prev, Gtk.PositionType.RIGHT, 1, 1)
+
+            c = c + 1
+            prev = button
+
+        self.economical.add(left_box)
+
+        # now add the right box
+        right_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        nu_ops = [".", "AC", "Normal mode", "="]
+
+        for op in nu_ops:
+            button = Gtk.Button(label=op)
+            button.connect("clicked", self.button_click)
+            button.set_size_request(w, h)
+            right_box.add(button)
+
+        self.economical.add(right_box)
+        #self.economical.set_visible(False)
+
+
+
     def button_click(self, widget):
         label = widget.get_label()
 
@@ -161,12 +248,35 @@ class CalculatorWindow(Gtk.Window):
         elif label == ".":
             self.edit_number(".")
         elif label == "AC":
-            self.current = ""
-            self.stack = []
-            self.op_stack = []
-            self.last_op = ""
+            self.cleanup()
+        elif label == "Eco mode":
+            #self.cleanup()
+            #self.grid_upper.remove(self.commands)
+            #print(self.economical.get_children())
+            self.commands.set_no_show_all(True)
+            self.commands.hide()
+            self.economical.set_no_show_all(False)
+            self.economical.show_all()
+        elif label == "Normal mode":
+            self.cleanup()
+            self.commands.set_no_show_all(False)
+            self.economical.set_no_show_all(True)
+            self.economical.hide()
+            self.commands.show()
+
 
         self.update_label()
+
+    def function_click(self, widget):
+        function = widget.get_label()
+        print("calling " + function)
+
+
+    def cleanup(self):
+        self.current = ""
+        self.stack = []
+        self.op_stack = []
+        self.last_op = ""
 
     def operate(self, a, b, op):
         #print(a + " " + op + b)

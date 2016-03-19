@@ -1,0 +1,3 @@
+Percent | s, perc, years | s + perc ** years
+Sum of three | a, b, c | a + b + c
+Amortisation | price, years | price / years  
